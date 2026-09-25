@@ -1,0 +1,47 @@
+name: PHP and MySQL tests
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.5']
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: test-password
+          MYSQL_DATABASE: simplephpkb_test
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -ptest-password"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    env:
+      KB_TEST_DSN: 'mysql:host=127.0.0.1;port=3306;dbname=simplephpkb_test;charset=utf8mb4'
+      KB_TEST_USER: root
+      KB_TEST_PASSWORD: test-password
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_mysql, mbstring, dom, fileinfo, gd, ctype, iconv, curl, zip
+          tools: composer:v2
+          coverage: none
+          ini-values: upload_max_filesize=40M, post_max_size=48M, memory_limit=256M
+      - run: composer install --no-dev --prefer-dist --no-interaction
+      - run: python3 scripts/fetch_editor.py
+      - name: Syntax
+        run: find src templates public bin -name '*.php' -not -path '*/tinymce/*' -print0 | xargs -0 -n1 php -l
+      - run: php tests/lifecycle_unit.php
+      - run: python3 tests/lifecycle_http.py
+      - run: php tests/run.php all
+      - run: php tests/setup_config.php
+      - run: python3 tests/http_test.py
+      - run: KB_TEST_BASE_PATH=/kb python3 tests/http_test.py
+      - run: python3 scripts/package.py && python3 tests/package_test.py

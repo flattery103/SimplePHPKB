@@ -1,0 +1,6 @@
+<div class="compact-search"><?php require __DIR__.'/search-form.php'; ?></div>
+<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="<?=e(route_url('home'))?>">Home</a><span>/</span><a href="<?=e(route_url('browse',['category'=>$a['category_id'] ?? '']))?>"><?=e($a['category_name'] ?? 'Uncategorized')?></a></nav>
+<?php if($preview): ?><div class="notice preview-notice"><strong>Draft preview</strong><span>Only signed-in admins can see this version.</span><a href="<?=e(route_url('edit',['id'=>$a['id']]))?>">Back to editor</a></div><?php endif; ?>
+<article class="reading-card"><header class="article-header"><div class="eyebrow"><?=e($a['category_name'] ?? 'Uncategorized')?></div><h1><?=e($a['title'] ?: 'Untitled article')?></h1><div class="article-info"><span>Updated <?=e(formatted_date($a['updated_at']))?></span><span>KB-<?=str_pad((string)$a['id'],4,'0',STR_PAD_LEFT)?></span></div><div class="article-actions"><?php if(!$preview): ?><button type="button" class="button secondary small" data-copy-link="<?=e(route_url('article',['id'=>$a['id']]))?>">Copy link</button><?php endif; ?><?php if($admin): ?><a class="button secondary small" href="<?=e(route_url('edit',['id'=>$a['id']]))?>">Edit article</a><?php endif; ?></div></header>
+<div class="article-body"><?=$a['html']?></div>
+</article>

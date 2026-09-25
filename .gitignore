@@ -1,0 +1,17 @@
+/config/*
+!/config/config.example.php
+/vendor/
+/public/assets/tinymce/
+/storage/*
+!/storage/.gitkeep
+/node_modules/
+/dist/
+/.superpowers/
+/tests/artifacts/
+
+__pycache__/
+*.pyc
+
+*.sql.gz
+*.zip
+.env
