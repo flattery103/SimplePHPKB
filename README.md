@@ -2,13 +2,14 @@
 
 A small PHP/MySQL knowledge base for internal teams. Employees can browse and search without signing in. Admins sign in to write and organize illustrated articles.
 
-**Version 0.6.0:** browser installation, backups, ZIP upgrades and database migrations, with optional GitHub release checks. Test on a separate development server before updating your employee site. GitHub hosts the source and release downloads; the PHP application runs on your own web server.
+**Version 0.7.0:** admin usage reports for site visits and article popularity, with today, 7-day, 30-day and all-time totals. Existing article counts are preserved. Test on a separate development server before updating your employee site. GitHub hosts the source and release downloads; the PHP application runs on your own web server.
 
 ## Features
 
 - Browser installer creates configuration, database tables and the first admin.
 - Browser update center with backup downloads, validated ZIP uploads, SQL migrations and recovery after interrupted updates.
 - Admin notices for newer stable releases from [flattery103/SimplePHPKB](https://github.com/flattery103/SimplePHPKB).
+- Admin-only Usage page with site visits, article views, articles read, and a searchable popularity list, including articles with no views. All-time views also appear in Manage articles. See [USAGE.md](docs/USAGE.md) for counting rules.
 
 - Search full questions with typo tolerance and ranked partial matches across titles, keywords, and published article text.
 - One homepage list of ten articles: starred publications first, then the most-viewed articles, without duplicates.
@@ -26,7 +27,7 @@ A small PHP/MySQL knowledge base for internal teams. Employees can browse and se
 
 ## Install
 
-Download `SimplePHPKB-v0.6.0.zip`, extract/upload it, and point the web server at **`public/`**. Open the site to enter database details and create the first admin. See [INSTALL.md](docs/INSTALL.md) for hosting prerequisites and permissions. No default credentials, Composer or Node are needed on the destination server.
+Download `SimplePHPKB-v0.7.0.zip`, extract/upload it, and point the web server at **`public/`**. Open the site to enter database details and create the first admin. See [INSTALL.md](docs/INSTALL.md) for hosting prerequisites and permissions. No default credentials, Composer or Node are needed on the destination server.
 
 PHP 8.3+; MySQL 8.0+ or MariaDB 10.11+; Apache/Nginx. Required extensions: PDO MySQL, mbstring, DOM/XML, fileinfo, GD, ctype, iconv. Enable zip for web backups/upgrades and curl for release checks.
 

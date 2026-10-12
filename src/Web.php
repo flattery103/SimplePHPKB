@@ -31,11 +31,12 @@ final class Web {
                     $isHome=$route==='home' && $q==='' && !$cat;
                     $results=$q!=='' ? (new Search($this->db))->query($q,$cat,$page) : $this->articles->listing($cat,$page,$isHome);
                     $title=$isHome ? 'Featured and popular articles' : ($q!=='' ? 'Search results' : ($catName ?? 'All articles'));
+                    if($method==='GET')$this->recordUsage();
                     $this->render('browse',compact('q','cat','catName','results','isHome','title'));break;
                 case 'article': case 'preview':
                     $id=input_id($_GET,'id');$preview=$route==='preview';$a=$this->articles->get($id,$preview);
                     if(!$a || ($preview && $a['trashed_at']))throw new UserError('Article not found.',404);
-                    if(!$preview && $method==='GET')$this->articles->recordView($id,session_id(),$_SERVER['HTTP_USER_AGENT'] ?? '',$this->admin!==null);
+                    if(!$preview && $method==='GET')$this->recordUsage($id);
                     $this->render('article',['a'=>$a,'title'=>$a['title'],'preview'=>$preview,'cat'=>$a['category_id']]);break;
                 case 'media': case 'logo': case 'category-image':
                     $m=match($route){'logo'=>(new Branding($this->db))->logo(),'category-image'=>$this->categories->image(input_id($_GET,'id')),default=>(new Media($this->db))->find(input_string($_GET,'id'),$this->admin!==null)};
@@ -75,6 +76,9 @@ final class Web {
                     $q=trim(input_string($_GET,'q'));if(mb_strlen($q)>200)throw new UserError('Search is limited to 200 characters.');
                     $this->render('admin',['title'=>'Manage articles','status'=>$status,'q'=>$q,'results'=>$this->articles->adminList($status,$q,input_id($_GET,'page',true) ?? 1)]);break;
                 case 'edit':$this->edit($post);break;
+                case 'usage':
+                    $period=input_string($_GET,'period','30');$search=trim(input_string($_GET,'search'));
+                    $this->render('usage',['title'=>'Usage','period'=>$period,'search'=>$search,'report'=>(new Usage($this->db))->report($period,$search,input_id($_GET,'page',true) ?? 1)]);break;
                 case 'branding':$this->branding($post);break;
                 case 'history':
                     $id=input_id($_GET,'id');$a=$this->articles->get($id,true);if(!$a)throw new UserError('Article not found.',404);
@@ -115,6 +119,13 @@ final class Web {
             if($route==='upload'){header('Content-Type: application/json');echo json_encode(['error'=>$e->getMessage()]);}
             else $this->render('error',['title'=>$e->status===404 ? 'Not found' : 'Unable to continue','error'=>$e->getMessage()]);
         }
+    }
+    private function recordUsage(?int $articleId=null): void {
+        try {
+            $usage=new Usage($this->db);$session=session_id();$agent=$_SERVER['HTTP_USER_AGENT'] ?? '';$admin=$this->admin!==null;
+            $usage->recordSiteVisit($session,$agent,$admin);
+            if($articleId!==null)$usage->recordArticleView($articleId,$session,$agent,$admin);
+        }catch(Throwable $e){error_log('SimplePHPKB usage tracking: '.$e);}
     }
     private function edit(bool $post): void {
         $id=input_id($_GET,'id');$a=$this->articles->get($id,true);

@@ -34,13 +34,13 @@ $db->exec('SET FOREIGN_KEY_CHECKS=1');
 Database::migrate($db);
 run_group('foundation', function() use ($db) {
     Database::migrate($db);
-    check((int)$db->query('SELECT COUNT(*) FROM schema_migrations')->fetchColumn() === 4, 'migration idempotent');
+    check((int)$db->query('SELECT COUNT(*) FROM schema_migrations')->fetchColumn() === count(glob(__DIR__.'/../database/*.sql')), 'migration idempotent');
     $db->prepare('INSERT INTO categories (name) VALUES (?)')->execute(['Réseau 日本語 🔧']);
     check($db->query('SELECT name FROM categories ORDER BY id DESC LIMIT 1')->fetchColumn() === 'Réseau 日本語 🔧', 'utf8mb4 round trip');
     check(app_url('index.php', ['route'=>'article','id'=>7]) === '/kb/index.php?route=article&id=7', 'subdirectory URL');
     check(e('<script>"') === '&lt;script&gt;&quot;', 'HTML output escaping');
 });
-foreach (['auth','content','search','enhancements','benchmark'] as $part) {
+foreach (['auth','content','search','enhancements','usage','benchmark'] as $part) {
     $file=__DIR__.'/'.$part.'.php';
     if (is_file($file)) require $file;
 }
