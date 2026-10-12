@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.0 — 2026-10-12
+
+- Admin-only Usage page for site visits, article views and articles read: today, last 7 days, last 30 days and all time.
+- Searchable, paginated article popularity list includes zero-view articles, drafts and Trash; Manage articles also shows all-time views.
+- Count successful anonymous reader GET requests once per browser session per UTC day, with separate deduplication for each article. Exclude signed-in admins, recognized bots, HEAD requests, images, previews, login and error pages.
+- Preserve existing all-time article counts and homepage popularity ordering. Retain daily aggregates while expiring old session hashes. No IP addresses, employee identities or external analytics service are added.
+- Migration 005 starts site/date-based tracking on upgrade; earlier article views remain visible in all-time totals. Run it with Application updates in the browser.
+- A tracking write failure is logged without blocking readers; article lifetime/daily counters update in one transaction.
+- Regression coverage for counts, date boundaries, admin access, concurrent reads, browser installation/upgrades and package contents.
+
 ## 0.6.0
 
 - Browser installation with prerequisite checks, generated private configuration, initial admin and interrupted-install recovery.

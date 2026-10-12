@@ -1,6 +1,8 @@
 """Real web install/update tests against a disposable database and extracted app."""
 import sys, pathlib, tempfile, shutil, os, subprocess, urllib.request, urllib.parse, urllib.error, http.cookiejar, re, time, json, zipfile, hashlib
 ROOT=pathlib.Path(__file__).resolve().parent.parent
+VERSION=re.search(r"KB_VERSION = '([^']+)'",(ROOT/'src/init.php').read_text()).group(1)
+NEXT_VERSION='99.0.0'
 DSN=os.environ['KB_TEST_DSN']
 assert re.search(r'dbname=[A-Za-z0-9_]+_test(?:;|$)',DSN)
 conn=dict(re.findall(r'(host|port|dbname)=([^;]+)',DSN))
@@ -38,7 +40,7 @@ with tempfile.TemporaryDirectory(prefix='kb-web-lifecycle-') as tmp:
         php("require 'src/init.php';$db=Database::connect(['dsn'=>getenv('KB_TEST_DSN'),'username'=>getenv('KB_TEST_USER')?:'root','password'=>getenv('KB_TEST_PASSWORD')?:'']);$db->exec('CREATE TABLE existing_content(id INT)');")
         assert request('',data)[0]==422,'nonempty database refused'
         php("require 'src/init.php';$db=Database::connect(['dsn'=>getenv('KB_TEST_DSN'),'username'=>getenv('KB_TEST_USER')?:'root','password'=>getenv('KB_TEST_PASSWORD')?:'']);$db->exec('DROP TABLE existing_content');")
-        broken=app/'database/005_interrupted.sql';broken.write_text('INVALID SQL;\n')
+        broken=app/'database/090_interrupted.sql';broken.write_text('INVALID SQL;\n')
         assert request('',data)[0]==500,'partial setup failure'
         assert not (app/'config/config.php').exists(),'failed install does not publish config'
         stranger=client();_,other=request(who=stranger)
@@ -69,7 +71,7 @@ with tempfile.TemporaryDirectory(prefix='kb-web-lifecycle-') as tmp:
         php("require 'src/bootstrap.php';$db->exec("+json.dumps(sql)+");")
         assert 'Web test KB' in request('home')[1],'SQL backup restores site'
         assert php("require 'src/bootstrap.php';echo json_encode($db->query('SELECT * FROM categories ORDER BY id')->fetchAll());")==category_before,'backup preserves ids, Unicode, null bytes and escapes' 
-        (app/'database/005_lifecycle_test.sql').write_text("CREATE TABLE IF NOT EXISTS web_upgrade_probe (id INT PRIMARY KEY);\n")
+        (app/'database/090_lifecycle_test.sql').write_text("CREATE TABLE IF NOT EXISTS web_upgrade_probe (id INT PRIMARY KEY);\n")
         assert request('home',who=client())[0]==503,'readers see maintenance for pending schema'
         status,body=request('updates',who=client())
         assert status==200 and 'Admin sign in' in body,'admin can sign in during maintenance'
@@ -84,9 +86,9 @@ with tempfile.TemporaryDirectory(prefix='kb-web-lifecycle-') as tmp:
         for folder in ['src','templates','database','public','vendor','bin']:
             for path in (app/folder).rglob('*'):
                 if path.is_file():fields[path.relative_to(app).as_posix()]=path.read_bytes()
-        fields['src/init.php']=fields['src/init.php'].replace(b"KB_VERSION = '0.6.0'",b"KB_VERSION = '0.7.0'")
-        fields['database/006_web_upgrade.sql']=b'CREATE TABLE IF NOT EXISTS web_upgrade_six (id INT PRIMARY KEY);\n'
-        manifest={'app':'SimplePHPKB','format':1,'version':'0.7.0','minimum_version':'0.6.0','files':{p:hashlib.sha256(v).hexdigest() for p,v in fields.items()}}
+        fields['src/init.php']=fields['src/init.php'].replace(("KB_VERSION = '"+VERSION+"'").encode(),("KB_VERSION = '"+NEXT_VERSION+"'").encode())
+        fields['database/091_web_upgrade.sql']=b'CREATE TABLE IF NOT EXISTS web_upgrade_six (id INT PRIMARY KEY);\n'
+        manifest={'app':'SimplePHPKB','format':1,'version':NEXT_VERSION,'minimum_version':'0.6.0','files':{p:hashlib.sha256(v).hexdigest() for p,v in fields.items()}}
         update=pathlib.Path(tmp)/'update.zip'
         with zipfile.ZipFile(update,'w',zipfile.ZIP_DEFLATED) as z:
             z.writestr('SimplePHPKB/update-manifest.json',json.dumps(manifest))
@@ -96,14 +98,14 @@ with tempfile.TemporaryDirectory(prefix='kb-web-lifecycle-') as tmp:
         payload=(f'--{boundary}\r\nContent-Disposition: form-data; name="csrf"\r\n\r\n{token}\r\n--{boundary}\r\nContent-Disposition: form-data; name="action"\r\n\r\nupload\r\n--{boundary}\r\nContent-Disposition: form-data; name="package"; filename="update.zip"\r\nContent-Type: application/zip\r\n\r\n').encode()+update.read_bytes()+f'\r\n--{boundary}--\r\n'.encode()
         req=urllib.request.Request(base+'?route=updates',payload,{'Content-Type':'multipart/form-data; boundary='+boundary})
         response=browser.open(req);body=response.read().decode()
-        assert 'Review update' in body and '0.7.0' in body,'real multipart ZIP upload'
+        assert 'Review update' in body and NEXT_VERSION in body,'real multipart ZIP upload'
         assert request('home')[0]==200,'staging does not put site in maintenance'
         assert request('updates',{'csrf':token,'action':'apply'})[0]==422,'backup acknowledgement required'
         status,body=request('updates',{'csrf':token,'action':'apply','backup_saved':'1'})
         assert status==200 and 'Apply database changes and finish' in body,'normal file update with automatic backup'
         # Emulate an interruption just before finalizing the durable file-copy journal.
         staged=json.loads((app/'storage/updates/staged.json').read_text())
-        (app/'storage/updates/state.json').write_text(json.dumps({'phase':'files','version':'0.7.0'}))
+        (app/'storage/updates/state.json').write_text(json.dumps({'phase':'files','version':NEXT_VERSION}))
         autoload=app/'vendor/autoload.php'
         autoload.write_bytes(autoload.read_bytes().replace(b'ComposerAutoloaderInit',b'InterruptedComposerAutoloaderInit'))
         assert request('home',who=client())[0]==503,'interrupted Composer copies stay in maintenance'
@@ -112,13 +114,13 @@ with tempfile.TemporaryDirectory(prefix='kb-web-lifecycle-') as tmp:
         assert status==200 and 'Apply database changes and finish' in body,(status,body)
         assert (app/'config/config.php').read_bytes()==config_before,'update preserves configuration bytes'
         assert (app/'storage/media/preserve.txt').read_text()=='uploaded content','update preserves media'
-        assert '0.7.0' in body,'new request loads new application version'
+        assert NEXT_VERSION in body,'new request loads new application version'
         assert request('home')[0]==503,'files alone do not reopen site'
-        migration=app/'database/006_web_upgrade.sql';migration.write_text('INVALID SQL;\n')
+        migration=app/'database/091_web_upgrade.sql';migration.write_text('INVALID SQL;\n')
         assert request('updates',{'csrf':token,'action':'migrate'})[0]==500,'failed migration remains recoverable'
         assert request('home')[0]==503,'failed SQL keeps maintenance'
         assert (app/'storage/updates/backup.zip').exists(),'original backup retained'
-        migration.write_bytes(fields['database/006_web_upgrade.sql'])
+        migration.write_bytes(fields['database/091_web_upgrade.sql'])
         assert request('updates',{'csrf':token,'action':'migrate'})[0]==200,'retry SQL succeeds'
         assert request('home')[0]==200,'upgraded site reopens'
         assert not (app/'storage/updates/state.json').exists(),'completed update clears maintenance'

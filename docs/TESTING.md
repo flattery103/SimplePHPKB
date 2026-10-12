@@ -1,3 +1,17 @@
+# Verification for 0.7.0
+
+The full service suite, existing HTTP workflows, Usage HTTP tests at `/` and `/kb`, concurrency checks and web installation/update lifecycle tests pass on PHP 8.3.6 / MariaDB 10.11.14. An actual 0.6.0 installation also passed the browser ZIP update to 0.7.0, including migration 005 and preservation of old counts/config/media. See [RELEASE-0.7.0.md](RELEASE-0.7.0.md) for scope and limitations.
+
+After configuring a disposable test database with the variables described below:
+
+```bash
+php tests/run.php all
+php tests/setup_config.php
+python3 tests/usage_http.py
+KB_TEST_BASE_PATH=/kb python3 tests/usage_http.py
+KB_CONFIG=tests/artifacts/config.php php tests/concurrency.php
+```
+
 # Verification for 0.5.0
 
 The full service suite passed 179 checks. New service checks cover disabled defaults, saved link/window/banner choices, optional-field preservation during branding-only saves, stale edits, URL schemes and internal addresses, credentials/control-character rejection, Unicode/type/length validation, atomic saves, disable/reuse, and migration replay.

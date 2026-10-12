@@ -89,7 +89,7 @@ final class Articles {
         $q=$this->db->prepare('SELECT r.*,u.display_name AS editor FROM revisions r JOIN admins u ON u.id=r.created_by WHERE r.article_id=? ORDER BY r.id DESC');$q->execute([$id]);return $q->fetchAll();
     }
     public function adminList(string $status,string $q='',int $page=1): array {
-        $sql='SELECT a.id,a.featured,a.draft_title AS title,a.published_revision_id,a.lock_version,a.trashed_at,a.updated_at,c.name AS category_name,u.display_name AS editor FROM articles a LEFT JOIN categories c ON c.id=a.draft_category_id JOIN admins u ON u.id=a.updated_by WHERE ';
+        $sql='SELECT a.id,a.featured,a.view_count,a.draft_title AS title,a.published_revision_id,a.lock_version,a.trashed_at,a.updated_at,c.name AS category_name,u.display_name AS editor FROM articles a LEFT JOIN categories c ON c.id=a.draft_category_id JOIN admins u ON u.id=a.updated_by WHERE ';
         $sql.=$status==='trash' ? 'a.trashed_at IS NOT NULL' : 'a.trashed_at IS NULL';
         if ($status==='draft') $sql.=' AND a.published_revision_id IS NULL';
         if ($status==='published') $sql.=' AND a.published_revision_id IS NOT NULL';
@@ -113,13 +113,6 @@ final class Articles {
         return compact('items','total','page','pages');
     }
     public function recordView(int $id,string $sessionKey,string $agent,bool $admin): void {
-        if($admin || $sessionKey==='' || $agent==='' || preg_match('/bot|crawler|spider|slurp|preview|headless/i',$agent))return;
-        Database::transaction($this->db,function()use($id,$sessionKey) {
-            $q=$this->db->prepare('SELECT id FROM articles WHERE id=? AND published_revision_id IS NOT NULL AND trashed_at IS NULL FOR UPDATE');$q->execute([$id]);if(!$q->fetch())return;
-            $q=$this->db->prepare('INSERT IGNORE INTO article_views (article_id,session_hash,view_day) VALUES (?,?,UTC_DATE())');$q->execute([$id,hash('sha256',$sessionKey)]);
-            if($q->rowCount()===1)$this->db->prepare('UPDATE articles SET view_count=view_count+1 WHERE id=?')->execute([$id]);
-            // Only today's records are needed for deduplication; keep yesterday for slow requests.
-            $this->db->exec('DELETE FROM article_views WHERE view_day < UTC_DATE()-INTERVAL 1 DAY LIMIT 100');
-        });
+        (new Usage($this->db))->recordArticleView($id,$sessionKey,$agent,$admin);
     }
 }

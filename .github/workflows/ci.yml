@@ -44,4 +44,7 @@ jobs:
       - run: php tests/setup_config.php
       - run: python3 tests/http_test.py
       - run: KB_TEST_BASE_PATH=/kb python3 tests/http_test.py
+      - run: python3 tests/usage_http.py
+      - run: KB_TEST_BASE_PATH=/kb python3 tests/usage_http.py
+      - run: KB_CONFIG=tests/artifacts/config.php php tests/concurrency.php
       - run: python3 scripts/package.py && python3 tests/package_test.py

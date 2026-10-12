@@ -1,5 +1,9 @@
 # Browser upgrades
 
+## Updating to 0.7.0
+
+Follow the browser steps below with **SimplePHPKB-v0.7.0-update.zip**. This release requires migration **005_usage.sql**, applied by **Apply database changes and finish**. Existing article totals, content, branding and uploaded files are preserved. Select **Usage** in the admin sidebar afterward. Site/date-based statistics start at upgrade time; earlier article totals appear under All time. See [USAGE.md](USAGE.md).
+
 ## Sites already running 0.6.0 or later
 
 1. Sign in and select **Application updates** in the admin sidebar. A newer published GitHub release also produces an admin notice.
